@@ -4,5 +4,4 @@ out/
 *.user
 .vs/
 TestResults/
-legacy/vpn-pause.log
-legacy/backup/**/vpn-pause.log
+legacy/

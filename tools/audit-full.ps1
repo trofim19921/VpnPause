@@ -82,12 +82,14 @@ sc.exe start VpnPauseService | Out-Null; Start-Sleep -Seconds 5
 $cfg.allowLan = $true; $cfg.strictMode = $true
 $null = Send $cfg
 Start-Sleep -Seconds 3
-$lan = & $curl -s -m 4 -o NUL -w '%{http_code}' http://192.168.1.1/
-Out "allowLan, no VPN: router http=$lan, internet $(Net)"
+$gw = (Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1).NextHop
+if (-not $gw) { $gw = '192.168.0.1' }
+$lan = & $curl -s -m 4 -o NUL -w '%{http_code}' "http://$gw/"
+Out "allowLan, no VPN: router http=$lan ($gw), internet $(Net)"
 $cfg.allowLan = $false
 $null = Send $cfg
 Start-Sleep -Seconds 3
-$lan = & $curl -s -m 4 -o NUL -w '%{http_code}' http://192.168.1.1/
+$lan = & $curl -s -m 4 -o NUL -w '%{http_code}' "http://$gw/"
 Out "no LAN, no VPN: router http=$lan"
 
 Out "== 5. new exe appears in a watched folder"

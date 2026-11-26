@@ -29,21 +29,21 @@ public class AppRuleTests
     [Fact]
     public void ClaudeCodeMatchesNewVersionsButNotOtherClaude()
     {
-        var r = Rule(@"C:\Users\Илья\AppData\Local\Claude-Data\claude_pzs8sxrjxfjjc\claude-code\2.1.330\9424831ad51c\claude.exe", MatchScope.Exe);
+        var r = Rule(@"C:\Users\Test\AppData\Local\Claude-Data\claude_pzs8sxrjxfjjc\claude-code\2.1.330\9424831ad51c\claude.exe", MatchScope.Exe);
         Assert.Equal(RuleKind.ClaudeCode, r.Kind);
-        Assert.True(r.Matches(@"C:\Users\Илья\AppData\Local\Claude-Data\claude_pzs8sxrjxfjjc\claude-code\2.2.0\abcdef\claude.exe"));
+        Assert.True(r.Matches(@"C:\Users\Test\AppData\Local\Claude-Data\claude_pzs8sxrjxfjjc\claude-code\2.2.0\abcdef\claude.exe"));
         Assert.False(r.Matches(@"C:\Program Files\WindowsApps\Claude_6.28899.6.0_x64__pzs8sxrjxfjjc\claude.exe"));
-        Assert.False(r.Matches(@"C:\Users\Илья\Ouroboros\venv\Lib\site-packages\claude_agent_sdk\_bundled\claude.exe"));
+        Assert.False(r.Matches(@"C:\Users\Test\Ouroboros\venv\Lib\site-packages\claude_agent_sdk\_bundled\claude.exe"));
     }
 
     [Fact]
     public void FolderScopeCoversHelpersAndVersionedSubfolders()
     {
-        var r = Rule(@"C:\Users\Илья\AppData\Local\Programs\Opera\opera.exe");
+        var r = Rule(@"C:\Users\Test\AppData\Local\Programs\Opera\opera.exe");
         Assert.Equal(RuleKind.Folder, r.Kind);
-        Assert.True(r.Matches(@"C:\Users\Илья\AppData\Local\Programs\Opera\115.0.5322.68\opera.exe"));
-        Assert.True(r.Matches(@"C:\Users\Илья\AppData\Local\Programs\Opera\115.0.5322.68\opera_crashreporter.exe"));
-        Assert.False(r.Matches(@"C:\Users\Илья\AppData\Local\Programs\Opera GX\opera.exe"));
+        Assert.True(r.Matches(@"C:\Users\Test\AppData\Local\Programs\Opera\115.0.5322.68\opera.exe"));
+        Assert.True(r.Matches(@"C:\Users\Test\AppData\Local\Programs\Opera\115.0.5322.68\opera_crashreporter.exe"));
+        Assert.False(r.Matches(@"C:\Users\Test\AppData\Local\Programs\Opera GX\opera.exe"));
     }
 
     [Fact]

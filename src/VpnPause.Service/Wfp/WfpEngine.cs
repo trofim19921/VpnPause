@@ -437,7 +437,7 @@ public sealed unsafe class WfpEngine : IDisposable
 
     /// <summary>
     /// NT device path of the image, fully lower-cased. FwpmGetAppIdFromFileName0 lower-cases only ASCII,
-    /// so for paths like C:\Users\Илья\… its result never matches what the kernel reports.
+    /// so for paths like C:\Users\Иван\… its result never matches what the kernel reports.
     /// </summary>
     public static string? AppId(string path)
     {
