@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>VpnPause.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="presets.json" LogicalName="VpnPause.presets.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="VpnPause.Tests" />
+  </ItemGroup>
+</Project>

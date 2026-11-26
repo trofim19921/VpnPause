@@ -1,0 +1,76 @@
+[
+  {
+    "id": "chatgpt",
+    "name": "ChatGPT",
+    "store": [
+      { "family": "OpenAI.Codex_2p2nqsd0c76g0", "exe": "ChatGPT.exe" },
+      { "family": "OpenAI.ChatGPT-Desktop_2p2nqsd0c76g0", "exe": "ChatGPT.exe" }
+    ],
+    "paths": [ "%LOCALAPPDATA%\\Programs\\ChatGPT\\ChatGPT.exe" ]
+  },
+  {
+    "id": "codex",
+    "name": "Codex",
+    "store": [ { "family": "OpenAI.Codex_2p2nqsd0c76g0", "exe": "Codex.exe" } ],
+    "paths": [ "%APPDATA%\\npm\\node_modules\\@openai\\codex\\vendor\\*\\codex\\codex.exe" ],
+    "scope": "exe"
+  },
+  {
+    "id": "claude",
+    "name": "Claude",
+    "store": [ { "family": "Claude_pzs8sxrjxfjjc", "exe": "claude.exe" } ],
+    "paths": [ "%LOCALAPPDATA%\\AnthropicClaude\\claude.exe" ]
+  },
+  {
+    "id": "claudecode",
+    "name": "Claude Code",
+    "paths": [
+      "%LOCALAPPDATA%\\Claude-Data\\*\\claude-code\\*\\*\\claude.exe",
+      "%USERPROFILE%\\.local\\bin\\claude.exe"
+    ],
+    "scope": "exe"
+  },
+  {
+    "id": "cursor",
+    "name": "Cursor",
+    "paths": [ "%LOCALAPPDATA%\\Programs\\cursor\\Cursor.exe" ]
+  },
+  {
+    "id": "vscode",
+    "name": "VS Code",
+    "paths": [ "%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\Code.exe", "%ProgramFiles%\\Microsoft VS Code\\Code.exe" ]
+  },
+  {
+    "id": "opera",
+    "name": "Opera",
+    "paths": [ "%LOCALAPPDATA%\\Programs\\Opera\\opera.exe", "%ProgramFiles%\\Opera\\opera.exe" ],
+    "hint": "opera"
+  },
+  {
+    "id": "operagx",
+    "name": "Opera GX",
+    "paths": [ "%LOCALAPPDATA%\\Programs\\Opera GX\\opera.exe" ],
+    "hint": "opera"
+  },
+  {
+    "id": "chrome",
+    "name": "Google Chrome",
+    "paths": [ "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe", "%LOCALAPPDATA%\\Google\\Chrome\\Application\\chrome.exe" ]
+  },
+  {
+    "id": "edge",
+    "name": "Microsoft Edge",
+    "paths": [ "%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe", "%ProgramFiles%\\Microsoft\\Edge\\Application\\msedge.exe" ]
+  },
+  {
+    "id": "firefox",
+    "name": "Firefox",
+    "paths": [ "%ProgramFiles%\\Mozilla Firefox\\firefox.exe" ]
+  },
+  {
+    "id": "telegram",
+    "name": "Telegram",
+    "store": [ { "family": "TelegramMessengerLLP.TelegramDesktop_t4vj0pshhgkwm", "exe": "Telegram.exe" } ],
+    "paths": [ "%APPDATA%\\Telegram Desktop\\Telegram.exe" ]
+  }
+]

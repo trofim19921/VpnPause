@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>VpnPause.App</RootNamespace>
+    <AssemblyName>VpnPause</AssemblyName>
+    <ApplicationIcon>..\..\assets\VpnPause.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VpnPause.Core\VpnPause.Core.csproj" />
+    <ProjectReference Include="..\VpnPause.Service\VpnPause.Service.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\assets\VpnPause.ico" LogicalName="VpnPause.ico" />
+  </ItemGroup>
+</Project>

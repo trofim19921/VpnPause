@@ -1,0 +1,128 @@
+namespace VpnPause.App;
+
+/// <summary>UI strings, Russian and English.</summary>
+static class L
+{
+    public static string Lang { get; set; } = "ru";
+
+    static readonly Dictionary<string, (string ru, string en)> S = new()
+    {
+        ["app.title"] = ("VpnPause", "VpnPause"),
+        ["status.off"] = ("Защита выключена", "Protection is off"),
+        ["status.on.up"] = ("Защита включена · VPN работает", "Protected · VPN is up"),
+        ["status.on.down"] = ("VPN нет · программы из списка отрезаны от сети", "VPN is down · listed apps are cut off"),
+        ["status.on.noadapter"] = ("Адаптер VPN не найден · программы из списка отрезаны от сети", "VPN adapter not found · listed apps are cut off"),
+        ["status.noadapter"] = ("Не выбран адаптер VPN — откройте Настройки", "No VPN adapter chosen — open Settings"),
+        ["status.service"] = ("Служба VpnPause не отвечает", "The VpnPause service is not responding"),
+        ["status.details"] = ("Адаптер: {0} · фильтров: {1} · заморожено процессов: {2}", "Adapter: {0} · filters: {1} · frozen processes: {2}"),
+        ["status.dns"] = ("DNS может идти мимо VPN: у адаптера VPN нет своих DNS-серверов.", "DNS may bypass the VPN: the VPN adapter has no DNS servers."),
+        ["status.error"] = ("Ошибка службы: {0}", "Service error: {0}"),
+        ["status.frozen"] = ("Программы на паузе: {0} процессов. Отпустит при возврате VPN или через {1} с.", "Apps paused: {0} processes. Released when the VPN returns or in {1} s."),
+
+        ["btn.enable"] = ("Включить защиту", "Turn protection on"),
+        ["btn.disable"] = ("Выключить защиту", "Turn protection off"),
+        ["btn.release"] = ("Отпустить всё", "Release all"),
+        ["btn.wizard"] = ("Мастер настройки…", "Setup wizard…"),
+        ["btn.startService"] = ("Запустить службу", "Start the service"),
+        ["tip.enable"] = ("Включить фильтры: программы из списка выходят в интернет только через VPN.", "Turn the filters on: listed apps reach the internet only through the VPN."),
+        ["tip.disable"] = ("Снять фильтры: программы из списка работают как обычно, в том числе без VPN.", "Remove the filters: listed apps work as usual, also without the VPN."),
+        ["tip.release"] = ("Сразу продолжить все замороженные программы. Горячая клавиша: Ctrl+Alt+Shift+P.", "Resume every frozen app right now. Hotkey: Ctrl+Alt+Shift+P."),
+
+        ["tab.apps"] = ("Программы", "Apps"),
+        ["tab.settings"] = ("Настройки", "Settings"),
+        ["tab.log"] = ("Журнал", "Log"),
+
+        ["apps.col.name"] = ("Программа", "App"),
+        ["apps.col.path"] = ("Путь", "Path"),
+        ["apps.col.scope"] = ("Охват", "Scope"),
+        ["apps.col.state"] = ("Сейчас", "Now"),
+        ["apps.scope.folder"] = ("вся папка", "whole folder"),
+        ["apps.scope.exe"] = ("один exe", "single exe"),
+        ["apps.scope.package"] = ("пакет Store", "Store package"),
+        ["apps.state.running"] = ("работает", "running"),
+        ["apps.state.frozen"] = ("на паузе", "paused"),
+        ["apps.state.stopped"] = ("не запущена", "not running"),
+        ["apps.add.preset"] = ("Добавить из списка…", "Add from list…"),
+        ["apps.add.running"] = ("Из запущенных…", "From running…"),
+        ["apps.add.browse"] = ("Обзор…", "Browse…"),
+        ["apps.remove"] = ("Удалить", "Remove"),
+        ["apps.tip.list"] = ("Этим программам разрешён интернет только через VPN. Охват «вся папка» включает все exe программы и её обновления.", "These apps may reach the internet only through the VPN. Scope \"whole folder\" covers every exe of the app and its updates."),
+        ["apps.tip.preset"] = ("Готовые настройки: ChatGPT, Codex, Claude, Claude Code, Cursor, браузеры, Telegram.", "Ready presets: ChatGPT, Codex, Claude, Claude Code, Cursor, browsers, Telegram."),
+        ["apps.tip.running"] = ("Выбрать из запущенных программ. В список попадёт полный путь.", "Pick from running apps. The full path is stored."),
+        ["apps.tip.browse"] = ("Указать exe на диске, даже если программа закрыта.", "Pick an exe on disk, even if the app is closed."),
+        ["apps.browse.title"] = ("Какие программы пускать в интернет только через VPN", "Which apps may use the internet only through the VPN"),
+        ["apps.browse.filter"] = ("Программы (*.exe)|*.exe", "Programs (*.exe)|*.exe"),
+        ["apps.rejected"] = ("Не добавлено:\n{0}", "Not added:\n{0}"),
+        ["apps.opera"] = ("В Opera отключите встроенный VPN (Настройки → Конфиденциальность → VPN), иначе он смешается с системным.", "In Opera turn off the built-in VPN (Settings → Privacy → VPN), otherwise it mixes with the system VPN."),
+
+        ["set.adapter"] = ("Адаптер VPN", "VPN adapter"),
+        ["set.adapter.refresh"] = ("Обновить", "Refresh"),
+        ["set.adapter.tip"] = ("Сетевой адаптер, который создаёт ваш VPN (Amnezia, WireGuard, OpenVPN…). Включите VPN, чтобы он появился. Адрес сервера VPN не нужен.", "The network adapter your VPN creates (Amnezia, WireGuard, OpenVPN…). Turn the VPN on so it shows up. The VPN server address is not needed."),
+        ["set.adapter.auto"] = ("Автоматически: любой VPN-адаптер (рекомендуется)", "Automatic: any VPN adapter (recommended)"),
+        ["set.adapter.vpn"] = ("похож на VPN", "looks like VPN"),
+        ["set.adapter.up"] = ("включён", "up"),
+        ["set.adapter.down"] = ("выключен", "down"),
+        ["set.strict"] = ("Строгий режим: фильтры остаются, даже если служба остановлена", "Strict mode: filters stay even if the service stops"),
+        ["set.strict.tip"] = ("Без строгого режима при остановке службы фильтры снимаются, и программы снова ходят напрямую. Со строгим режимом фильтры живут до явного выключения защиты, в том числе после перезагрузки.", "Without strict mode the filters are removed when the service stops. With strict mode they stay until protection is turned off, also across reboots."),
+        ["set.lan"] = ("Разрешить локальную сеть без VPN (принтеры, NAS, роутер)", "Allow the local network without VPN (printers, NAS, router)"),
+        ["set.lan.tip"] = ("Пускать программы к адресам 10.x, 172.16–31.x, 192.168.x и локальным IPv6 напрямую. Интернет всё равно только через VPN.", "Let apps reach 10.x, 172.16–31.x, 192.168.x and local IPv6 directly. Internet still only through the VPN."),
+        ["set.notify"] = ("Уведомлять, когда VPN пропадает и возвращается", "Notify when the VPN drops and returns"),
+        ["set.autostart"] = ("Запускать окно VpnPause при входе в Windows", "Start the VpnPause window at sign-in"),
+        ["set.freeze"] = ("Заморозка", "Freezing"),
+        ["set.freeze.on"] = ("Замораживать программы при обрыве VPN", "Freeze apps when the VPN drops"),
+        ["set.freeze.tip"] = ("Не обязательно: сеть и так закрыта фильтрами. Заморозка помогает пережить короткий обрыв без переподключения. Программы с окнами не замораживаются, чтобы не вешать Windows.", "Optional: the network is already closed by the filters. Freezing helps survive a short drop without reconnecting. Apps with windows are not frozen so Windows does not hang."),
+        ["set.freeze.delay"] = ("Ждать перед заморозкой, с", "Wait before freezing, s"),
+        ["set.freeze.max"] = ("Держать не дольше, с", "Keep frozen at most, s"),
+        ["set.freeze.windows"] = ("Замораживать и процессы с окнами (может вешать рабочий стол)", "Also freeze processes with windows (may hang the desktop)"),
+        ["set.lang"] = ("Язык", "Language"),
+        ["set.exclusions"] = ("Исключения (часть пути, по строке)", "Exclusions (part of a path, one per line)"),
+        ["set.exclusions.tip"] = ("Процессы, в пути которых есть такая строка, не попадают под фильтры и заморозку. Например: \\Ouroboros\\", "Processes whose path contains such a line are not filtered or frozen. Example: \\Ouroboros\\"),
+        ["set.save"] = ("Сохранить", "Save"),
+        ["set.saved"] = ("Сохранено", "Saved"),
+        ["set.clear"] = ("Аварийно снять все фильтры", "Emergency: remove all filters"),
+        ["set.clear.tip"] = ("Убрать все фильтры VpnPause и выключить защиту. Если какая-то программа осталась без сети.", "Remove every VpnPause filter and turn protection off. Use if an app lost network access."),
+        ["set.clear.confirm"] = ("Снять все фильтры и выключить защиту?", "Remove all filters and turn protection off?"),
+
+        ["log.service"] = ("Служба", "Service"),
+        ["log.app"] = ("Окно", "Window"),
+
+        ["tray.open"] = ("Открыть", "Open"),
+        ["tray.exit"] = ("Выход", "Exit"),
+        ["tray.exit.note"] = ("Окно закрыто. Защита продолжает работать в службе.", "The window is closed. Protection keeps running in the service."),
+        ["notify.down"] = ("VPN пропал. Программы из списка отрезаны от сети.", "VPN dropped. Listed apps are cut off."),
+        ["notify.up"] = ("VPN вернулся.", "VPN is back."),
+
+        ["pick.presets.title"] = ("Добавить программы", "Add apps"),
+        ["pick.presets.hint"] = ("Отметьте программы. Серые не найдены на этом компьютере.", "Tick the apps. Grey ones are not installed on this computer."),
+        ["pick.running.title"] = ("Запущенные программы", "Running apps"),
+        ["pick.running.hint"] = ("Отметьте программы. В список попадёт полный путь к exe.", "Tick the apps. The full exe path is stored."),
+        ["pick.filter"] = ("Поиск", "Search"),
+        ["pick.ok"] = ("Добавить", "Add"),
+        ["pick.cancel"] = ("Отмена", "Cancel"),
+        ["pick.notfound"] = ("не найдено", "not found"),
+
+        ["wiz.title"] = ("Настройка VpnPause", "VpnPause setup"),
+        ["wiz.next"] = ("Далее", "Next"),
+        ["wiz.back"] = ("Назад", "Back"),
+        ["wiz.finish"] = ("Готово", "Finish"),
+        ["wiz.step1"] = ("VpnPause пускает выбранные программы в интернет только через VPN. Если VPN пропал, эти программы не выйдут в сеть напрямую и не покажут ваш настоящий IP.\n\nСначала включите свой VPN, затем нажмите «Далее».", "VpnPause lets chosen apps reach the internet only through your VPN. If the VPN drops, these apps cannot go online directly and never reveal your real IP.\n\nTurn your VPN on first, then press Next."),
+        ["wiz.step2"] = ("Выберите адаптер, который создаёт ваш VPN. Помеченные «похож на VPN» — вероятные кандидаты. Если вашего нет, включите VPN и нажмите «Обновить».", "Choose the adapter your VPN creates. Ones marked \"looks like VPN\" are likely candidates. If yours is missing, turn the VPN on and press Refresh."),
+        ["wiz.step3"] = ("Какие программы пускать только через VPN?", "Which apps may use the internet only through the VPN?"),
+        ["wiz.step4"] = ("Проверка", "Check"),
+        ["wiz.check.adapter"] = ("Адаптер VPN: {0}", "VPN adapter: {0}"),
+        ["wiz.check.vpn"] = ("VPN сейчас: {0}", "VPN right now: {0}"),
+        ["wiz.check.filters"] = ("Фильтров в Windows: {0}", "Filters in Windows: {0}"),
+        ["wiz.check.how"] = ("Проверьте сами: выключите VPN — точка в трее станет красной, а программы из списка покажут «нет сети». Включите VPN — они снова работают.", "Check it yourself: turn the VPN off — the tray dot turns red and listed apps show \"no network\". Turn the VPN on — they work again."),
+        ["wiz.yes"] = ("работает", "up"),
+        ["wiz.no"] = ("нет", "down"),
+        ["wiz.none"] = ("не выбран", "not chosen"),
+        ["wiz.legacy"] = ("Найдена прошлая версия VpnPause. Её список программ перенесён, а автозапуск старой версии убран.", "A previous VpnPause version was found. Its app list was imported and its autostart removed."),
+
+        ["err.service"] = ("Служба VpnPause недоступна: {0}", "The VpnPause service is unavailable: {0}"),
+    };
+
+    public static string T(string key) =>
+        S.TryGetValue(key, out var v) ? (Lang == "en" ? v.en : v.ru) : key;
+
+    public static string F(string key, params object[] args) => string.Format(T(key), args);
+}
