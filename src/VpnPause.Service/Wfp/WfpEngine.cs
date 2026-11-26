@@ -33,8 +33,23 @@ public sealed class WfpException : Exception
 /// </summary>
 public sealed unsafe class WfpEngine : IDisposable
 {
-    public static readonly Guid ProviderKey = new("6f0e4a6c-5f2e-4c38-9a53-1f6f1d7b3a01");
-    public static readonly Guid SubLayerKey = new("6f0e4a6c-5f2e-4c38-9a53-1f6f1d7b3a02");
+    public static readonly Guid DefaultProvider = new("6f0e4a6c-5f2e-4c38-9a53-1f6f1d7b3a01");
+    public static readonly Guid DefaultSubLayer = new("6f0e4a6c-5f2e-4c38-9a53-1f6f1d7b3a02");
+    public static readonly Guid SelfTestProvider = new("6f0e4a6c-5f2e-4c38-9a53-1f6f1d7b3a11");
+    public static readonly Guid SelfTestSubLayer = new("6f0e4a6c-5f2e-4c38-9a53-1f6f1d7b3a12");
+
+    /// <summary>
+    /// Objects of a dynamic session can be changed only by that session, so a second engine (the self-test)
+    /// running beside the service needs its own provider and sublayer.
+    /// </summary>
+    public WfpEngine(Guid? provider = null, Guid? subLayer = null)
+    {
+        ProviderKey = provider ?? DefaultProvider;
+        SubLayerKey = subLayer ?? DefaultSubLayer;
+    }
+
+    public Guid ProviderKey { get; }
+    public Guid SubLayerKey { get; }
 
     static readonly Guid[] Layers = { FwpConst.LayerConnectV4, FwpConst.LayerRecvAcceptV4, FwpConst.LayerConnectV6, FwpConst.LayerRecvAcceptV6 };
 
@@ -51,6 +66,9 @@ public sealed unsafe class WfpEngine : IDisposable
 
     IntPtr engine;
     bool strictSession;
+
+    readonly List<ulong> pendingIds = new();
+    List<ulong> addedIds = new();
 
     public int FilterCount { get; private set; }
 
@@ -82,6 +100,7 @@ public sealed unsafe class WfpEngine : IDisposable
             engine = IntPtr.Zero;
         }
         FilterCount = 0;
+        addedIds = new();
     }
 
     public void Dispose() => Close();
@@ -93,6 +112,7 @@ public sealed unsafe class WfpEngine : IDisposable
         using var arena = new Arena();
         Check(FwpNative.FwpmTransactionBegin0(engine, 0), "FwpmTransactionBegin0");
         int added = 0;
+        pendingIds.Clear();
         try
         {
             RemoveOwned();
@@ -109,6 +129,7 @@ public sealed unsafe class WfpEngine : IDisposable
             }
             Check(FwpNative.FwpmTransactionCommit0(engine), "FwpmTransactionCommit0");
             FilterCount = added;
+            addedIds = pendingIds.ToList();
         }
         catch
         {
@@ -118,9 +139,9 @@ public sealed unsafe class WfpEngine : IDisposable
     }
 
     /// <summary>Deletes every VpnPause filter, sublayer and provider, including persistent ones.</summary>
-    public static int RemoveEverything()
+    public static int RemoveEverything(Guid? provider = null, Guid? subLayer = null)
     {
-        using var e = new WfpEngine();
+        using var e = new WfpEngine(provider, subLayer);
         e.Open(strict: true);
         Check(FwpNative.FwpmTransactionBegin0(e.engine, 0), "FwpmTransactionBegin0");
         try
@@ -184,6 +205,27 @@ public sealed unsafe class WfpEngine : IDisposable
 
     int RemoveOwned()
     {
+        var ids = OwnedIds();
+        int removed = 0;
+        foreach (var id in ids)
+        {
+            var rc = FwpNative.FwpmFilterDeleteById0(engine, id);
+            if (rc == 0) removed++;
+            else if (rc != FwpConst.FWP_E_FILTER_NOT_FOUND && rc != FwpConst.FWP_E_WRONG_SESSION) Check(rc, "FwpmFilterDeleteById0");
+        }
+        var sub = SubLayerKey;
+        var rcs = FwpNative.FwpmSubLayerDeleteByKey0(engine, &sub);
+        if (rcs != 0 && rcs != FwpConst.FWP_E_SUBLAYER_NOT_FOUND && rcs != FwpConst.FWP_E_IN_USE && rcs != FwpConst.FWP_E_WRONG_SESSION)
+            Check(rcs, "FwpmSubLayerDeleteByKey0");
+        var prov = ProviderKey;
+        var rcp = FwpNative.FwpmProviderDeleteByKey0(engine, &prov);
+        if (rcp != 0 && rcp != FwpConst.FWP_E_PROVIDER_NOT_FOUND && rcp != FwpConst.FWP_E_IN_USE && rcp != FwpConst.FWP_E_WRONG_SESSION)
+            Check(rcp, "FwpmProviderDeleteByKey0");
+        return removed;
+    }
+
+    List<ulong> OwnedIds()
+    {
         var ids = new List<ulong>();
         Check(FwpNative.FwpmFilterCreateEnumHandle0(engine, IntPtr.Zero, out var handle), "FwpmFilterCreateEnumHandle0");
         try
@@ -210,18 +252,7 @@ public sealed unsafe class WfpEngine : IDisposable
         {
             FwpNative.FwpmFilterDestroyEnumHandle0(engine, handle);
         }
-        foreach (var id in ids)
-        {
-            var rc = FwpNative.FwpmFilterDeleteById0(engine, id);
-            if (rc != 0 && rc != FwpConst.FWP_E_FILTER_NOT_FOUND) Check(rc, "FwpmFilterDeleteById0");
-        }
-        var sub = SubLayerKey;
-        var rcs = FwpNative.FwpmSubLayerDeleteByKey0(engine, &sub);
-        if (rcs != 0 && rcs != FwpConst.FWP_E_SUBLAYER_NOT_FOUND) Check(rcs, "FwpmSubLayerDeleteByKey0");
-        var prov = ProviderKey;
-        var rcp = FwpNative.FwpmProviderDeleteByKey0(engine, &prov);
-        if (rcp != 0 && rcp != FwpConst.FWP_E_PROVIDER_NOT_FOUND && rcp != FwpConst.FWP_E_IN_USE) Check(rcp, "FwpmProviderDeleteByKey0");
-        return ids.Count;
+        return ids;
     }
 
     void AddProviderAndSublayer(bool persistent, Arena arena)
@@ -376,7 +407,32 @@ public sealed unsafe class WfpEngine : IDisposable
             actionType = action
         };
         filter.displayData.name = arena.Str(name.Length > 200 ? name[..200] : name);
-        Check(FwpNative.FwpmFilterAdd0(engine, &filter, IntPtr.Zero, out _), "FwpmFilterAdd0");
+        Check(FwpNative.FwpmFilterAdd0(engine, &filter, IntPtr.Zero, out var id), "FwpmFilterAdd0");
+        pendingIds.Add(id);
+    }
+
+    /// <summary>
+    /// False when filters this engine added are gone (BFE restart, another tool wiping WFP state).
+    /// With <paramref name="full"/> all owned filters are counted, otherwise a few are looked up by id.
+    /// </summary>
+    public bool Verify(bool full)
+    {
+        if (addedIds.Count == 0) return true;
+        if (!IsOpen) return false;
+        if (full)
+        {
+            var present = OwnedIds().ToHashSet();
+            return addedIds.All(present.Contains);
+        }
+        var probes = new HashSet<ulong> { addedIds[0], addedIds[^1], addedIds[addedIds.Count / 2], addedIds[Random.Shared.Next(addedIds.Count)] };
+        foreach (var id in probes)
+        {
+            var rc = FwpNative.FwpmFilterGetById0(engine, id, out var f);
+            if (rc == FwpConst.FWP_E_TIMEOUT) return true;
+            if (rc != 0) return false;
+            FwpNative.FwpmFreeMemory0(ref f);
+        }
+        return true;
     }
 
     /// <summary>

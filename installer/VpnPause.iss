@@ -46,9 +46,14 @@ en.ServiceDesc=VpnPause: blocks selected apps from reaching the internet outside
 Name: "autostart"; Description: "{cm:Autostart}"
 
 [Files]
-Source: "{#PublishDir}\VpnPause.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\docs\ИНСТРУКЦИЯ.md"; DestDir: "{app}"; Flags: ignoreversion
+
+[InstallDelete]
+Type: filesandordirs; Name: "{win}\SystemTemp\.net\VpnPause"
+Type: filesandordirs; Name: "{win}\Temp\.net\VpnPause"
+Type: filesandordirs; Name: "{localappdata}\Temp\.net\VpnPause"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\VpnPause.exe"
@@ -92,17 +97,20 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Bin: String;
+  Code: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
     Bin := ExpandConstant('{app}\VpnPause.exe');
     if Sc('query {#ServiceName}') = 0 then
-      Sc('config {#ServiceName} binPath= "\"' + Bin + '\" --service" start= auto')
+      Sc('config {#ServiceName} binPath= "\"' + Bin + '\" --service" start= auto depend= BFE')
     else
-      Sc('create {#ServiceName} binPath= "\"' + Bin + '\" --service" start= auto DisplayName= "VpnPause"');
+      Sc('create {#ServiceName} binPath= "\"' + Bin + '\" --service" start= auto depend= BFE DisplayName= "VpnPause"');
     Sc('description {#ServiceName} "' + ExpandConstant('{cm:ServiceDesc}') + '"');
     Sc('failure {#ServiceName} reset= 86400 actions= restart/2000/restart/5000/restart/30000');
+    Sc('failureflag {#ServiceName} 1');
     Sc('start {#ServiceName}');
+    Exec(Bin, '--import-legacy', '', SW_HIDE, ewWaitUntilTerminated, Code);
   end;
 end;
 

@@ -136,6 +136,8 @@ static class FwpConst
     public const uint FWP_E_PROVIDER_NOT_FOUND = 0x80320005;
     public const uint FWP_E_SUBLAYER_NOT_FOUND = 0x80320007;
     public const uint FWP_E_IN_USE = 0x8032000A;
+    public const uint FWP_E_WRONG_SESSION = 0x8032000C;
+    public const uint FWP_E_TIMEOUT = 0x80320012;
 
     public static readonly Guid LayerConnectV4 = new("c38d57d1-05a7-4c33-904f-7fbceee60e82");
     public static readonly Guid LayerConnectV6 = new("4a72393b-319f-44bc-84c3-ba54dcb3b6b4");
@@ -164,6 +166,7 @@ static unsafe class FwpNative
     [DllImport(Lib)] public static extern uint FwpmSubLayerDeleteByKey0(IntPtr engineHandle, Guid* key);
     [DllImport(Lib)] public static extern uint FwpmFilterAdd0(IntPtr engineHandle, FWPM_FILTER0* filter, IntPtr sd, out ulong id);
     [DllImport(Lib)] public static extern uint FwpmFilterDeleteById0(IntPtr engineHandle, ulong id);
+    [DllImport(Lib)] public static extern uint FwpmFilterGetById0(IntPtr engineHandle, ulong id, out IntPtr filter);
     [DllImport(Lib)] public static extern uint FwpmFilterCreateEnumHandle0(IntPtr engineHandle, IntPtr enumTemplate, out IntPtr enumHandle);
     [DllImport(Lib)] public static extern uint FwpmFilterEnum0(IntPtr engineHandle, IntPtr enumHandle, uint numEntriesRequested, out IntPtr entries, out uint numEntriesReturned);
     [DllImport(Lib)] public static extern uint FwpmFilterDestroyEnumHandle0(IntPtr engineHandle, IntPtr enumHandle);

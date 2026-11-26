@@ -75,10 +75,15 @@ public class FreezerTests
             Assert.Equal(1, f.ReleaseAll());
             Assert.False(Freezer.IsFullySuspended(p.Id));
             Assert.Equal(0, f.HeldCount);
+
+            Assert.Equal(1, f.Freeze(rules, Array.Empty<string>(), includeWindows: false));
+            Assert.Equal(0, Freezer.Control(p.Id, suspend: false));
+            Assert.Equal(0, f.ReleaseAll());
+            Assert.False(Freezer.IsFullySuspended(p.Id));
         }
         finally
         {
-            Freezer.ReleaseStuck(new[] { AppRule.From(new AppEntry { Path = ping, Scope = MatchScope.Exe }) }, Array.Empty<string>(), force: true);
+            Freezer.ReleaseStuck(new[] { AppRule.From(new AppEntry { Path = ping, Scope = MatchScope.Exe }) }, Array.Empty<string>());
             p.Kill();
             p.WaitForExit(5000);
             Directory.Delete(dir, true);
@@ -101,6 +106,7 @@ public class FreezerTests
             var rules = new[] { AppRule.From(new AppEntry { Path = ping, Scope = MatchScope.Exe }) };
             Assert.Equal(1, Freezer.ReleaseStuck(rules, Array.Empty<string>()));
             Assert.False(Freezer.IsFullySuspended(p.Id));
+            Assert.Equal(0, Freezer.ReleaseStuck(rules, Array.Empty<string>()));
         }
         finally
         {

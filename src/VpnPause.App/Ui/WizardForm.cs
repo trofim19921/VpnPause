@@ -159,7 +159,7 @@ sealed class WizardForm : Form
                 var r = await c.SaveConfigAsync(draft);
                 if (!r.Ok)
                 {
-                    MessageBox.Show(this, L.F("err.service", r.Error ?? "?"), "VpnPause", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MainForm.ShowFailure(this, r);
                     return;
                 }
                 draft = r.Config!.Clone();

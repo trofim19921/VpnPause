@@ -80,8 +80,80 @@ public class AppRuleTests
     {
         var r = Rule(@"C:\Users\x\AppData\Local\Programs\cursor\Cursor.exe");
         Assert.True(r.Matches(@"C:\Users\x\AppData\Local\Programs\cursor\resources\app\bin\rg.exe"));
-        Assert.False(r.Matches(@"C:\Users\x\AppData\Local\Programs\cursor\resources\app\bin\rg.exe", new[] { @"\bin\rg.exe" }));
+        Assert.False(r.Matches(@"C:\Users\x\AppData\Local\Programs\cursor\resources\app\bin\rg.exe", new[] { "rg.exe" }));
+        Assert.False(r.Matches(@"C:\Users\x\AppData\Local\Programs\cursor\resources\app\bin\rg.exe", new[] { @"C:\Users\x\AppData\Local\Programs\cursor\resources\app\bin\RG.exe" }));
+        Assert.False(r.Matches(@"C:\Users\x\AppData\Local\Programs\cursor\resources\app\bin\rg.exe", new[] { @"C:\Users\x\AppData\Local\Programs\cursor\resources\app\bin" }));
+        Assert.True(r.Matches(@"C:\Users\x\AppData\Local\Programs\cursor\Cursor.exe", new[] { "rg.exe", @"C:\Users\x\AppData\Local\Programs\cursor\resources\app\bin" }));
     }
+
+    [Theory]
+    [InlineData("e")]
+    [InlineData("rg")]
+    [InlineData(@"\bin\")]
+    [InlineData(@"\\server\share\x.exe")]
+    [InlineData(@"C:\Program Files")]
+    public void BadExclusionsAreRejected(string ex) => Assert.NotNull(AppRule.ValidateExclusion(ex));
+
+    [Theory]
+    [InlineData("rg.exe")]
+    [InlineData(@"C:\Tools\thing.exe")]
+    [InlineData(@"C:\Users\x\AppData\Local\Programs\cursor\resources")]
+    public void GoodExclusionsAreAccepted(string ex) => Assert.Null(AppRule.ValidateExclusion(ex));
+
+    [Theory]
+    [InlineData(@"\\127.0.0.1\c$\Tools\x.exe")]
+    [InlineData(@"\\attacker\share\app.exe")]
+    [InlineData(@"\\?\C:\Tools\y.exe")]
+    [InlineData(@"\\.\C:\Tools\z.exe")]
+    [InlineData(@"\\?\UNC\server\share\z.exe")]
+    [InlineData(@"C:\Tools\..\..\Windows\System32\cmd.exe")]
+    public void NonLocalOrSneakyPathsAreRejected(string path) =>
+        Assert.NotNull(AppRule.Validate(new AppEntry { Path = path }));
+
+    [Fact]
+    public void AppCountIsLimited()
+    {
+        var cfg = new AppConfig();
+        for (int i = 0; i < ConfigStore.MaxApps + 50; i++) cfg.Apps.Add(new AppEntry { Path = $@"C:\Apps\A{i}\a.exe", Scope = MatchScope.Exe });
+        ConfigStore.Normalize(cfg, out var rejected);
+        Assert.Equal(ConfigStore.MaxApps, cfg.Apps.Count);
+        Assert.Equal(50, rejected.Count);
+    }
+
+    [Fact]
+    public void DamagedConfigFallsBackToBackup()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"vpnpause-test-{Guid.NewGuid():N}.json");
+        try
+        {
+            ConfigStore.Save(file, new AppConfig { Apps = { new AppEntry { Name = "One", Path = @"C:\Apps\One\one.exe" } } });
+            ConfigStore.Save(file, new AppConfig { Apps = { new AppEntry { Name = "Two", Path = @"C:\Apps\Two\two.exe" } } });
+            Assert.True(File.Exists(file + ".bak"));
+
+            File.WriteAllText(file, "");
+            var back = ConfigStore.Load(file, out var error, out var unusable);
+            Assert.False(unusable);
+            Assert.NotNull(error);
+            Assert.Equal("One", back.Apps.Single().Name);
+
+            ConfigStore.Save(file, new AppConfig { Apps = { new AppEntry { Name = "Three", Path = @"C:\Apps\Three\three.exe" } } });
+            Assert.Equal("One", ConfigStore.Load(file + ".bak").Apps.Single().Name);
+
+            File.WriteAllText(file, "{");
+            File.WriteAllText(file + ".bak", "{");
+            ConfigStore.Load(file, out error, out unusable);
+            Assert.True(unusable);
+            Assert.NotNull(error);
+        }
+        finally
+        {
+            File.Delete(file);
+            File.Delete(file + ".bak");
+        }
+    }
+
+    [Fact]
+    public void StrictIsTheDefault() => Assert.True(new AppConfig().StrictMode);
 
     [Theory]
     [InlineData(@"C:\Windows\System32\svchost.exe")]
@@ -127,12 +199,11 @@ public class AppRuleTests
             var back = ConfigStore.Load(file);
             Assert.True(back.StrictMode);
             Assert.Equal("Cursor", back.Apps.Single().Name);
-            File.WriteAllText(file, "{ not json");
-            Assert.Empty(ConfigStore.Load(file).Apps);
         }
         finally
         {
             File.Delete(file);
+            File.Delete(file + ".bak");
         }
     }
 

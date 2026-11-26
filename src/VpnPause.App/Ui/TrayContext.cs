@@ -17,7 +17,11 @@ sealed class TrayContext : ApplicationContext
     {
         this.controller = controller;
         miOpen = new ToolStripMenuItem("", null, (_, _) => ShowMain());
-        miToggle = new ToolStripMenuItem("", null, async (_, _) => await controller.SetEnabledAsync(!controller.Config.Enabled));
+        miToggle = new ToolStripMenuItem("", null, async (_, _) =>
+        {
+            var r = await controller.SetEnabledAsync(!controller.Config.Enabled);
+            if (!r.Ok) VpnPause.App.MainForm.ShowFailure(null, r);
+        });
         miRelease = new ToolStripMenuItem("", null, async (_, _) => await controller.ReleaseAllAsync());
         miExit = new ToolStripMenuItem("", null, (_, _) => Exit());
         var menu = new ContextMenuStrip();
@@ -37,6 +41,7 @@ sealed class TrayContext : ApplicationContext
         {
             if (refreshing) return;
             refreshing = true;
+            timer.Interval = form is { Visible: true } ? 1500 : 3000;
             try
             {
                 await controller.RefreshStatusAsync();

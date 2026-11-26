@@ -17,8 +17,9 @@ if (-not $SkipTests) {
 
 $publish = Join-Path $PSScriptRoot 'out\publish'
 if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
+# A plain folder, not single-file: a single-file exe unpacks native DLLs into %TEMP%, and the service runs as SYSTEM.
 dotnet publish .\src\VpnPause.App\VpnPause.App.csproj -c Release -r win-x64 --self-contained `
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o $publish -nologo
+    -p:PublishSingleFile=false -p:DebugType=none -p:SatelliteResourceLanguages=en%3Bru -o $publish -nologo
 if ($LASTEXITCODE) { throw 'publish failed' }
 
 function Sign([string]$file) {

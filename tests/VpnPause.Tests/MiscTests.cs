@@ -6,6 +6,19 @@ namespace VpnPause.Tests;
 public class MiscTests
 {
     [Fact]
+    public void NetworkWatchReusesStatusUntilInvalidated()
+    {
+        using var watch = new NetworkWatch();
+        var cfg = new AppConfig { AutoAdapter = true };
+        var first = watch.Get(cfg);
+        Assert.Same(first, watch.Get(cfg));
+        watch.Invalidate();
+        Assert.NotSame(first, watch.Get(cfg));
+        var other = watch.Get(new AppConfig { AutoAdapter = false, Adapter = new AdapterRef { Id = "x", Name = "x" } });
+        Assert.False(other.AdapterFound);
+    }
+
+    [Fact]
     public void LogKeepsAtMostFiveFiles()
     {
         var dir = Path.Combine(Path.GetTempPath(), "vpnpause-log-" + Guid.NewGuid().ToString("N"));

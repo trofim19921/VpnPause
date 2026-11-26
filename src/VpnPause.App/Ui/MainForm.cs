@@ -34,6 +34,7 @@ sealed class MainForm : Form
     readonly ListBox logBox = new() { Dock = DockStyle.Fill, Font = new Font("Consolas", 9f), HorizontalScrollbar = true, IntegralHeight = false };
     readonly TabControl tabs = new() { Dock = DockStyle.Fill };
     readonly System.Windows.Forms.Timer slowTimer = new() { Interval = 3000 };
+    readonly ProcessScanner.Cache processCache = new();
 
     public MainForm(AppController controller, TrayContext tray)
     {
@@ -64,7 +65,11 @@ sealed class MainForm : Form
         root.Controls.Add(buttons);
         root.Controls.Add(tabs);
 
-        btnToggle.Click += async (_, _) => await c.SetEnabledAsync(!c.Config.Enabled);
+        btnToggle.Click += async (_, _) =>
+        {
+            var r = await c.SetEnabledAsync(!c.Config.Enabled);
+            if (!r.Ok) ShowFailure(this, r);
+        };
         btnRelease.Click += async (_, _) => await c.ReleaseAllAsync();
         btnWizard.Click += (_, _) => tray.ShowWizard();
         btnService.Click += (_, _) => NativeUi.StartServiceElevated();
@@ -140,7 +145,8 @@ sealed class MainForm : Form
                 statusText.Text = s.AdapterFound ? L.T("status.on.down") : L.T("status.on.noadapter");
             }
             statusDetails.Text = L.F("status.details", string.IsNullOrEmpty(s.AdapterName) ? L.T("wiz.none") : s.AdapterName, s.FilterCount, c.Freezer.HeldCount);
-            if (s.LastError != null) warn = L.F("status.error", s.LastError);
+            if (s.ConfigError != null) warn = L.F("status.config", s.ConfigError);
+            else if (s.LastError != null) warn = L.F("status.error", s.LastError);
             else if (s.DnsOutside) warn = L.T("status.dns");
             else if (c.Freezer.HeldCount > 0) warn = L.F("status.frozen", c.Freezer.HeldCount, c.Config.Freeze.MaxSeconds);
         }
@@ -227,7 +233,7 @@ sealed class MainForm : Form
 
     void UpdateAppStates()
     {
-        var procs = ProcessScanner.Snapshot();
+        var procs = processCache.Snapshot();
         foreach (ListViewItem item in apps.Items)
         {
             var rule = AppRule.From((AppEntry)item.Tag!);
@@ -267,12 +273,20 @@ sealed class MainForm : Form
         var r = await c.SaveConfigAsync(cfg);
         if (!r.Ok)
         {
-            MessageBox.Show(this, L.F("err.service", r.Error ?? "?"), "VpnPause", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ShowFailure(this, r);
             return false;
         }
         if (r.Rejected is { Count: > 0 })
             MessageBox.Show(this, L.F("apps.rejected", string.Join("\n", r.Rejected)), "VpnPause", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         return true;
+    }
+
+    public static void ShowFailure(IWin32Window? owner, Response r)
+    {
+        if (r.Error == Errors.Cancelled)
+            MessageBox.Show(owner, L.T("err.cancelled"), "VpnPause", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        else
+            MessageBox.Show(owner, L.F("err.service", r.Error ?? "?"), "VpnPause", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
     // ---- Settings tab ----
@@ -322,7 +336,8 @@ sealed class MainForm : Form
         clear.Click += async (_, _) =>
         {
             if (MessageBox.Show(this, L.T("set.clear.confirm"), "VpnPause", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-            await c.ClearFiltersAsync();
+            var r = await c.ClearFiltersAsync();
+            if (!r.Ok) ShowFailure(this, r);
             LoadSettings();
         };
         var saveRow = Row(save, savedNote, clear);

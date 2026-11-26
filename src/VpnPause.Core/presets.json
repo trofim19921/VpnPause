@@ -68,6 +68,11 @@
     "paths": [ "%ProgramFiles%\\Mozilla Firefox\\firefox.exe" ]
   },
   {
+    "id": "git",
+    "name": "Git и SSH (Git for Windows)",
+    "paths": [ "%ProgramFiles%\\Git\\git-bash.exe" ]
+  },
+  {
     "id": "telegram",
     "name": "Telegram",
     "store": [ { "family": "TelegramMessengerLLP.TelegramDesktop_t4vj0pshhgkwm", "exe": "Telegram.exe" } ],

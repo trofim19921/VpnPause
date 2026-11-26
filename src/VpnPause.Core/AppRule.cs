@@ -15,6 +15,7 @@ public sealed class AppRule
 {
     static readonly Regex StoreFolder = new(@"\\windowsapps\\([^\\]+)\\", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     static readonly Regex PackageFullName = new(@"^([^_]+)_[^_]+_[^_]*_[^_]*_([^_]+)$", RegexOptions.CultureInvariant);
+    static readonly Regex LocalDrivePath = new(@"^[a-zA-Z]:\\", RegexOptions.CultureInvariant);
     static readonly Regex VersionSegment = new(@"^(app-)?v?\d+(\.\d+){1,4}([-+][0-9a-z.]+)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     static readonly Regex BroadFolder = new(
         @"^[a-z]:\\(?:(?:program files(?: \(x86\))?(?:\\windowsapps|\\common files)?)|programdata|users|users\\[^\\]+(?:\\appdata(?:\\(?:local|roaming|locallow)(?:\\programs)?)?|\\desktop|\\downloads|\\documents|\\onedrive)?)?\\?$",
@@ -30,6 +31,9 @@ public sealed class AppRule
     public RuleKind Kind { get; }
     public string Key { get; }
     public string? StoreFamily { get; }
+
+    /// <summary>Folder to watch for new executables, so filters exist before a new binary first runs.</summary>
+    public string? WatchRoot => Kind is RuleKind.Folder or RuleKind.ClaudeCode ? prefix : null;
     public string? StorePackageName { get; }
     public string? StorePublisherId { get; }
 
@@ -89,16 +93,7 @@ public sealed class AppRule
     public static string? Validate(AppEntry entry)
     {
         if (string.IsNullOrWhiteSpace(entry.Path)) return "empty path";
-        string full;
-        try
-        {
-            if (!System.IO.Path.IsPathFullyQualified(entry.Path)) return "path is not absolute";
-            full = System.IO.Path.GetFullPath(entry.Path);
-        }
-        catch (Exception)
-        {
-            return "invalid path";
-        }
+        if (LocalPathError(entry.Path, out var full) is { } bad) return bad;
         if (!full.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return "not an .exe";
         var win = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
         if (!string.IsNullOrEmpty(win) && full.StartsWith(win.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase))
@@ -110,15 +105,67 @@ public sealed class AppRule
         return null;
     }
 
+    /// <summary>
+    /// Only drive-letter paths on local disks. UNC (\\server\share), \\?\ and \\.\ paths are refused:
+    /// the service runs as SYSTEM and would otherwise authenticate to a remote host while scanning.
+    /// </summary>
+    public static string? LocalPathError(string path, out string full)
+    {
+        full = "";
+        if (!LocalDrivePath.IsMatch(path)) return "only paths on a local disk (C:\\…) are allowed";
+        try
+        {
+            full = System.IO.Path.GetFullPath(path);
+        }
+        catch (Exception)
+        {
+            return "invalid path";
+        }
+        if (!LocalDrivePath.IsMatch(full)) return "only paths on a local disk (C:\\…) are allowed";
+        try
+        {
+            if (new DriveInfo(full[..1]).DriveType == DriveType.Network) return "network drives are not allowed";
+        }
+        catch (Exception)
+        {
+        }
+        return null;
+    }
+
+    /// <summary>An exclusion is either an exe file name (rg.exe) or a full local path to an exe or a folder.</summary>
+    public static string? ValidateExclusion(string exclusion)
+    {
+        var e = exclusion.Trim();
+        if (!e.Contains('\\') && !e.Contains('/'))
+            return e.Length > 4 && e.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && e.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()) < 0
+                ? null
+                : "use an exe file name (rg.exe) or a full path";
+        return LocalPathError(e, out var full) is { } bad ? bad : IsBroadFolder(full) ? "folder is too broad" : null;
+    }
+
+    static bool Excluded(string normalizedPath, IReadOnlyCollection<string> exclusions)
+    {
+        foreach (var raw in exclusions)
+        {
+            var ex = Normalize(raw);
+            if (!ex.Contains('\\'))
+            {
+                if (System.IO.Path.GetFileName(normalizedPath) == ex) return true;
+            }
+            else if (ex.EndsWith(".exe", StringComparison.Ordinal))
+            {
+                if (normalizedPath == ex) return true;
+            }
+            else if (normalizedPath.StartsWith(ex.TrimEnd('\\') + "\\", StringComparison.Ordinal)) return true;
+        }
+        return false;
+    }
+
     public bool Matches(string? processPath, IReadOnlyCollection<string>? exclusions = null)
     {
         if (string.IsNullOrEmpty(processPath)) return false;
         var p = Normalize(processPath);
-        if (exclusions != null)
-        {
-            foreach (var ex in exclusions)
-                if (p.Contains(ex.ToLowerInvariant(), StringComparison.Ordinal)) return false;
-        }
+        if (exclusions is { Count: > 0 } && Excluded(p, exclusions)) return false;
         switch (Kind)
         {
             case RuleKind.StorePackage:

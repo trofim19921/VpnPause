@@ -38,7 +38,7 @@ public sealed class AppConfig
     public bool Enabled { get; set; } = true;
     public bool AutoAdapter { get; set; } = true;
     public AdapterRef? Adapter { get; set; }
-    public bool StrictMode { get; set; }
+    public bool StrictMode { get; set; } = true;
     public bool AllowLan { get; set; }
     public FreezeSettings Freeze { get; set; } = new();
     public bool Notifications { get; set; } = true;

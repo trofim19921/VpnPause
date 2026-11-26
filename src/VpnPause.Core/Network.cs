@@ -99,7 +99,7 @@ public static class Network
         return new VpnStatus(true, routed != null, shown, routed != null && DnsOutside(routed, all), vpns.Select(a => a.Luid).ToList());
     }
 
-    static HashSet<uint> BestIndexes()
+    internal static HashSet<uint> BestIndexes()
     {
         var set = new HashSet<uint>();
         foreach (var probe in Probes)
@@ -131,4 +131,62 @@ public static class Network
 
     [DllImport("iphlpapi.dll")]
     static extern int ConvertInterfaceLuidToIndex(ref ulong interfaceLuid, out uint interfaceIndex);
+}
+
+/// <summary>
+/// Enumerating adapters costs tens of milliseconds, too much for a loop that runs every second or two.
+/// The status is recomputed when Windows reports an address change, when the route to the internet moves
+/// to another interface (a cheap check done on every call), when the adapter choice changes, and at least every 30 s.
+/// </summary>
+public sealed class NetworkWatch : IDisposable
+{
+    static readonly TimeSpan MaxAge = TimeSpan.FromSeconds(30);
+
+    readonly object gate = new();
+    volatile bool dirty = true;
+    VpnStatus? last;
+    string lastKey = "";
+    string lastRoutes = "";
+    DateTime lastAt;
+
+    public NetworkWatch()
+    {
+        NetworkChange.NetworkAddressChanged += OnChanged;
+        NetworkChange.NetworkAvailabilityChanged += OnChanged;
+    }
+
+    public event Action? Changed;
+
+    public void Invalidate() => dirty = true;
+
+    public VpnStatus Get(AppConfig cfg)
+    {
+        var key = cfg.AutoAdapter ? "auto" : $"{cfg.Adapter?.Id}|{cfg.Adapter?.Name}";
+        var routes = string.Join(",", Network.BestIndexes().OrderBy(i => i));
+        var now = DateTime.UtcNow;
+        lock (gate)
+        {
+            if (last == null || dirty || key != lastKey || routes != lastRoutes || now - lastAt > MaxAge)
+            {
+                dirty = false;
+                last = Network.Status(cfg);
+                lastKey = key;
+                lastRoutes = routes;
+                lastAt = now;
+            }
+            return last;
+        }
+    }
+
+    void OnChanged(object? sender, EventArgs e)
+    {
+        dirty = true;
+        Changed?.Invoke();
+    }
+
+    public void Dispose()
+    {
+        NetworkChange.NetworkAddressChanged -= OnChanged;
+        NetworkChange.NetworkAvailabilityChanged -= OnChanged;
+    }
 }

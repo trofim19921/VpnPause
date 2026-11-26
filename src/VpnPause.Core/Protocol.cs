@@ -12,6 +12,17 @@ public static class Commands
     public const string SetEnabled = "setEnabled";
     public const string ClearFilters = "clearFilters";
     public const string ReleaseStuck = "releaseStuck";
+    public const string FreezeLease = "freezeLease";
+
+    /// <summary>Commands that change protection. Only SYSTEM and elevated administrators may send them.</summary>
+    public static bool NeedsAdmin(string cmd) => cmd is SetConfig or SetEnabled or ClearFilters;
+}
+
+public static class Errors
+{
+    public const string AdminRequired = "admin-required";
+    public const string Cancelled = "cancelled";
+    public const string ServiceUnavailable = "service-unavailable";
 }
 
 public sealed class Request
@@ -40,6 +51,7 @@ public sealed class ServiceStatus
     public int FilterCount { get; set; }
     public List<TargetInfo> Targets { get; set; } = new();
     public string? LastError { get; set; }
+    public string? ConfigError { get; set; }
     public DateTime AppliedAt { get; set; }
 }
 
@@ -86,26 +98,41 @@ public static class ServiceClient
         using var cts = new CancellationTokenSource(timeoutMs);
         try
         {
-            using var pipe = new NamedPipeClientStream(".", AppPaths.PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+            using var pipe = new NamedPipeClientStream(".", AppPaths.PipeName, PipeDirection.InOut, PipeOptions.Asynchronous,
+                System.Security.Principal.TokenImpersonationLevel.Identification);
             await pipe.ConnectAsync(Math.Min(timeoutMs, 1500), cts.Token);
+            if (!TrustedServer(pipe)) return Response.Fail("untrusted-server");
             await Wire.WriteAsync(pipe, request, cts.Token);
             return await Wire.ReadAsync<Response>(pipe, cts.Token) ?? Response.Fail("empty response");
         }
         catch (TimeoutException)
         {
-            return Response.Fail("service-unavailable");
+            return Response.Fail(Errors.ServiceUnavailable);
         }
         catch (OperationCanceledException)
         {
-            return Response.Fail("service-unavailable");
+            return Response.Fail(Errors.ServiceUnavailable);
         }
         catch (IOException e)
         {
-            return Response.Fail("service-unavailable: " + e.Message);
+            return Response.Fail(Errors.ServiceUnavailable + ": " + e.Message);
         }
         catch (UnauthorizedAccessException)
         {
             return Response.Fail("access-denied");
         }
     }
+
+    /// <summary>The pipe must be served by this very exe or by the installed one, not by a squatter.</summary>
+    static bool TrustedServer(NamedPipeClientStream pipe)
+    {
+        if (!GetNamedPipeServerProcessId(pipe.SafePipeHandle, out var pid)) return false;
+        var path = ProcessScanner.Query((int)pid).path;
+        if (path == null) return false;
+        return string.Equals(path, Environment.ProcessPath, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(path, AppPaths.InstalledExe, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetNamedPipeServerProcessId(Microsoft.Win32.SafeHandles.SafePipeHandle pipe, out uint pid);
 }

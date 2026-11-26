@@ -18,6 +18,9 @@ public static class AppPaths
 
     public static string UserLogDir => Path.Combine(UserDir, "logs");
 
+    public static string InstalledExe =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), ProductName, ProductName + ".exe");
+
     public static string LegacyDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", ProductName);
 }

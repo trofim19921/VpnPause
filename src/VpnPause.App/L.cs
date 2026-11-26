@@ -17,6 +17,7 @@ static class L
         ["status.details"] = ("Адаптер: {0} · фильтров: {1} · заморожено процессов: {2}", "Adapter: {0} · filters: {1} · frozen processes: {2}"),
         ["status.dns"] = ("DNS может идти мимо VPN: у адаптера VPN нет своих DNS-серверов.", "DNS may bypass the VPN: the VPN adapter has no DNS servers."),
         ["status.error"] = ("Ошибка службы: {0}", "Service error: {0}"),
+        ["status.config"] = ("Настройки повреждены: {0}. Проверьте список программ и сохраните его заново.", "Settings are damaged: {0}. Check the app list and save it again."),
         ["status.frozen"] = ("Программы на паузе: {0} процессов. Отпустит при возврате VPN или через {1} с.", "Apps paused: {0} processes. Released when the VPN returns or in {1} s."),
 
         ["btn.enable"] = ("Включить защиту", "Turn protection on"),
@@ -118,6 +119,7 @@ static class L
         ["wiz.none"] = ("не выбран", "not chosen"),
         ["wiz.legacy"] = ("Найдена прошлая версия VpnPause. Её список программ перенесён, а автозапуск старой версии убран.", "A previous VpnPause version was found. Its app list was imported and its autostart removed."),
 
+        ["err.cancelled"] = ("Изменение не сохранено: Windows не получила подтверждение администратора. Менять защиту может только администратор.", "Not saved: Windows did not get administrator approval. Only an administrator can change protection."),
         ["err.service"] = ("Служба VpnPause недоступна: {0}", "The VpnPause service is unavailable: {0}"),
     };
 

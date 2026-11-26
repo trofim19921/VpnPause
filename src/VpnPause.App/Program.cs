@@ -20,6 +20,10 @@ static class Program
                 AttachConsole();
                 WindowsService.RunInConsole();
                 return 0;
+            case "--admin":
+                return Elevated.Run(args.Skip(1).FirstOrDefault());
+            case "--import-legacy":
+                return ImportLegacy();
             case "--remove-filters":
                 try
                 {
@@ -34,7 +38,7 @@ static class Program
                 return RunSelfTest(args.Skip(1).FirstOrDefault());
             case "--release-all":
                 var cfg = ConfigStore.Load(AppPaths.ConfigFile);
-                Freezer.ReleaseStuck(cfg.Apps.Select(AppRule.From).ToList(), cfg.Exclusions, force: true);
+                Freezer.ReleaseStuck(cfg.Apps.Select(AppRule.From).ToList(), cfg.Exclusions);
                 return 0;
         }
 
@@ -50,6 +54,30 @@ static class Program
         var startHidden = mode == "--tray";
         Application.Run(new TrayContext(controller, startHidden));
         return 0;
+    }
+
+    /// <summary>Run by the installer (elevated, as the installing user): moves the old apps.txt list into the service config.</summary>
+    static int ImportLegacy()
+    {
+        if (!Legacy.TryImport(out var entries, out _)) return 0;
+        var log = new RotatingLog(AppPaths.UserLogDir, "app");
+        for (int i = 0; i < 15; i++)
+        {
+            var r = ServiceClient.SendAsync(new Request { Cmd = Commands.GetConfig }).GetAwaiter().GetResult();
+            if (r.Ok && r.Config != null)
+            {
+                var cfg = r.Config;
+                foreach (var e in entries)
+                    if (!cfg.Apps.Any(a => string.Equals(a.Path, e.Path, StringComparison.OrdinalIgnoreCase))) cfg.Apps.Add(e);
+                var s = ServiceClient.SendAsync(new Request { Cmd = Commands.SetConfig, Config = cfg }, 10000).GetAwaiter().GetResult();
+                if (!s.Ok) return 2;
+                Legacy.Retire(log);
+                log.Write($"installer imported {entries.Count} apps from the previous version");
+                return 0;
+            }
+            Thread.Sleep(1000);
+        }
+        return 4;
     }
 
     static int RunSelfTest(string? outFile)

@@ -35,6 +35,31 @@ public static class ProcessScanner
         return result;
     }
 
+    /// <summary>Process ids only, without opening the processes.</summary>
+    public static List<int> Pids() => Entries().Select(e => e.Pid).ToList();
+
+    /// <summary>Process ids, parents and exe file names, without opening the processes.</summary>
+    public static List<(int Pid, int ParentPid, string Exe)> Entries()
+    {
+        var result = new List<(int, int, string)>();
+        var snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snap == IntPtr.Zero || snap == new IntPtr(-1)) return result;
+        try
+        {
+            var e = new PROCESSENTRY32W { dwSize = (uint)Marshal.SizeOf<PROCESSENTRY32W>() };
+            if (!Process32FirstW(snap, ref e)) return result;
+            do
+            {
+                if (e.th32ProcessID > 4) result.Add(((int)e.th32ProcessID, (int)e.th32ParentProcessID, e.szExeFile));
+            } while (Process32NextW(snap, ref e));
+        }
+        finally
+        {
+            CloseHandle(snap);
+        }
+        return result;
+    }
+
     public static (string? path, long startTicks) Query(int pid)
     {
         var h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
@@ -54,6 +79,36 @@ public static class ProcessScanner
     }
 
     public static long StartTicks(int pid) => Query(pid).startTicks;
+
+    /// <summary>
+    /// Snapshot for repeated polling: only processes not seen before are opened. A reused PID shows up
+    /// with a different exe name or parent and is queried again. Good for display, not for decisions
+    /// that need the start time checked.
+    /// </summary>
+    public sealed class Cache
+    {
+        Dictionary<int, (int Parent, string Exe, ProcInfo? Info)> known = new();
+
+        public List<ProcInfo> Snapshot()
+        {
+            var next = new Dictionary<int, (int, string, ProcInfo?)>();
+            var result = new List<ProcInfo>();
+            foreach (var (pid, parent, exe) in Entries())
+            {
+                ProcInfo? info;
+                if (known.TryGetValue(pid, out var k) && k.Parent == parent && k.Exe == exe) info = k.Info;
+                else
+                {
+                    var (path, start) = Query(pid);
+                    info = path == null ? null : new ProcInfo(pid, parent, path, start);
+                }
+                next[pid] = (parent, exe, info);
+                if (info is { } i) result.Add(i);
+            }
+            known = next;
+            return result;
+        }
+    }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct PROCESSENTRY32W

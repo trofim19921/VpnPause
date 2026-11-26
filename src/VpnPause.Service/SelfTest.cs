@@ -35,7 +35,7 @@ public static class SelfTest
         output.WriteLine($"no filters:      vpn={before.vpn ?? "fail"} physical={before.physical ?? "fail"}");
 
         int failures = 0;
-        using (var wfp = new WfpEngine())
+        using (var wfp = new WfpEngine(WfpEngine.SelfTestProvider, WfpEngine.SelfTestSubLayer))
         {
             var target = new[] { new FilterTarget("selftest", curl, null) };
             wfp.Apply(new FilterPlan { Enabled = true, VpnLuids = new[] { adapter.Luid }, Targets = target });
@@ -51,6 +51,16 @@ public static class SelfTest
             var none = Probe(curl, physicalIp);
             output.WriteLine($"no VPN adapter:  vpn={none.vpn ?? "fail"} physical={none.physical ?? "fail"}");
             if (none.vpn != null || none.physical != null) { failures++; output.WriteLine("FAIL traffic got through with VPN missing"); }
+
+            wfp.Apply(new FilterPlan { Enabled = true, Strict = true, Targets = target });
+            if (!wfp.Verify(full: false) || !wfp.Verify(full: true)) { failures++; output.WriteLine("FAIL verify reports missing filters while they are in place"); }
+            var strictNone = Probe(curl, physicalIp);
+            output.WriteLine($"strict, no VPN adapter: vpn={strictNone.vpn ?? "fail"} physical={strictNone.physical ?? "fail"}");
+            if (strictNone.vpn != null || strictNone.physical != null) { failures++; output.WriteLine("FAIL strict filters let traffic through"); }
+            WfpEngine.RemoveEverything(WfpEngine.SelfTestProvider, WfpEngine.SelfTestSubLayer);
+            bool quick = wfp.Verify(full: false), full = wfp.Verify(full: true);
+            output.WriteLine($"after external removal: quick verify={quick} full verify={full}");
+            if (quick || full) { failures++; output.WriteLine("FAIL verify did not notice filters removed from outside"); }
 
             wfp.Apply(new FilterPlan { Enabled = false });
             var after = Probe(curl, physicalIp);

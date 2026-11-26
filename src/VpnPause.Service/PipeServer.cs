@@ -5,7 +5,10 @@ using VpnPause.Core;
 
 namespace VpnPause.Service;
 
-/// <summary>Control pipe. Only SYSTEM, administrators and the interactive (logged-on) user may connect.</summary>
+/// <summary>
+/// Control pipe. SYSTEM, administrators and the interactive (logged-on) user may connect; only SYSTEM and
+/// elevated administrators may change protection (see <see cref="Commands.NeedsAdmin"/>).
+/// </summary>
 public sealed class PipeServer
 {
     readonly Func<Request, Task<Response>> handler;
@@ -30,14 +33,17 @@ public sealed class PipeServer
 
     async Task AcceptLoop(CancellationToken ct)
     {
+        bool first = true;
         while (!ct.IsCancellationRequested)
         {
             NamedPipeServerStream? server = null;
             try
             {
+                var options = PipeOptions.Asynchronous | (first ? PipeOptions.FirstPipeInstance : PipeOptions.None);
                 server = NamedPipeServerStreamAcl.Create(AppPaths.PipeName, PipeDirection.InOut,
                     NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous, 64 * 1024, 64 * 1024, Security());
+                    options, 64 * 1024, 64 * 1024, Security());
+                first = false;
                 await server.WaitForConnectionAsync(ct);
                 var connected = server;
                 server = null;
@@ -48,6 +54,11 @@ public sealed class PipeServer
                 server?.Dispose();
                 return;
             }
+            catch (UnauthorizedAccessException) when (first)
+            {
+                log.Write("control pipe name is taken by another process, retrying");
+                await Task.Delay(5000, ct).ContinueWith(_ => { });
+            }
             catch (Exception e)
             {
                 server?.Dispose();
@@ -55,6 +66,24 @@ public sealed class PipeServer
                 await Task.Delay(1000, ct).ContinueWith(_ => { });
             }
         }
+    }
+
+    static bool CallerIsAdmin(NamedPipeServerStream stream)
+    {
+        bool admin = false;
+        try
+        {
+            stream.RunAsClient(() =>
+            {
+                using var id = WindowsIdentity.GetCurrent(TokenAccessLevels.Query);
+                admin = id.IsSystem || new WindowsPrincipal(id).IsInRole(WindowsBuiltInRole.Administrator);
+            });
+        }
+        catch (Exception)
+        {
+            admin = false;
+        }
+        return admin;
     }
 
     async Task Serve(NamedPipeServerStream stream, CancellationToken ct)
@@ -69,7 +98,13 @@ public sealed class PipeServer
                 Response resp;
                 try
                 {
-                    resp = req == null ? Response.Fail("bad request") : await handler(req);
+                    if (req == null) resp = Response.Fail("bad request");
+                    else if (Commands.NeedsAdmin(req.Cmd) && !CallerIsAdmin(stream))
+                    {
+                        log.Write($"refused '{req.Cmd}' from a non-elevated client");
+                        resp = Response.Fail(Errors.AdminRequired);
+                    }
+                    else resp = await handler(req);
                 }
                 catch (Exception e)
                 {

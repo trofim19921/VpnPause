@@ -53,35 +53,34 @@ public sealed class Freezer
             list = held.ToArray();
             held.Clear();
         }
+        if (list.Length == 0) return 0;
+        var suspended = SuspendedPids();
         int n = 0;
         foreach (var (pid, start) in list)
         {
-            if (ProcessScanner.StartTicks(pid) != start) continue;
+            if (!suspended.Contains(pid) || ProcessScanner.StartTicks(pid) != start) continue;
             if (Control(pid, suspend: false) == 0) n++;
         }
         return n;
     }
 
     /// <summary>
-    /// Resumes app processes that are fully suspended, e.g. after a crash while frozen.
-    /// With <paramref name="force"/> every matching process gets a resume call; that is a no-op for running ones.
+    /// Resumes app processes whose every thread is suspended, e.g. left behind by a crash while frozen.
+    /// Running processes are never touched: a resume call would also wake threads the app suspended itself.
     /// </summary>
-    public static int ReleaseStuck(IReadOnlyList<AppRule> rules, IReadOnlyCollection<string> exclusions, bool force = false)
+    public static int ReleaseStuck(IReadOnlyList<AppRule> rules, IReadOnlyCollection<string> exclusions)
     {
         if (rules.Count == 0) return 0;
+        var suspended = SuspendedPids();
+        if (suspended.Count == 0) return 0;
         int n = 0;
-        foreach (var p in ProcessScanner.Snapshot())
+        foreach (var pid in suspended)
         {
-            if (!rules.Any(r => r.Matches(p.Path, exclusions))) continue;
-            if (force)
-            {
-                for (int i = 0; i < 4 && IsFullySuspended(p.Pid); i++) Control(p.Pid, suspend: false);
-                if (Control(p.Pid, suspend: false) == 0) n++;
-                continue;
-            }
-            int tries = 0;
-            while (IsFullySuspended(p.Pid) && tries++ < 4) Control(p.Pid, suspend: false);
-            if (tries > 0) n++;
+            var path = ProcessScanner.Query(pid).path;
+            if (!rules.Any(r => r.Matches(path, exclusions))) continue;
+            for (int i = 0; i < 4 && Control(pid, suspend: false) == 0; i++)
+                if (!IsFullySuspended(pid)) break;
+            n++;
         }
         return n;
     }
@@ -91,12 +90,36 @@ public sealed class Freezer
         try
         {
             using var proc = Process.GetProcessById(pid);
+            return AllSuspended(proc);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Processes whose every thread is suspended, from one system snapshot.</summary>
+    public static HashSet<int> SuspendedPids()
+    {
+        var set = new HashSet<int>();
+        foreach (var proc in Process.GetProcesses())
+        {
+            using (proc)
+            {
+                if (proc.Id > 4 && AllSuspended(proc)) set.Add(proc.Id);
+            }
+        }
+        return set;
+    }
+
+    static bool AllSuspended(Process proc)
+    {
+        try
+        {
             var threads = proc.Threads;
             if (threads.Count == 0) return false;
             foreach (ProcessThread t in threads)
-            {
                 if (t.ThreadState != System.Diagnostics.ThreadState.Wait || t.WaitReason != ThreadWaitReason.Suspended) return false;
-            }
             return true;
         }
         catch (Exception)
